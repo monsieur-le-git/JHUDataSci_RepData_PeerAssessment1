@@ -1,0 +1,130 @@
+---
+title: "Reproducible Research: Peer Assessment 1"
+output: 
+  html_document:
+    keep_md: true
+    number_sections: true
+---
+
+Author: Simon Hobbs  
+Date: 28-Oct-2022
+
+---
+
+```{r}
+
+library(dplyr)
+library(ggplot2)
+library(stringr)
+
+```
+
+
+# Loading and preprocessing the data
+
+Read the CSV
+
+```{r}
+
+unzip("activity.zip")
+df_data <- read.csv("activity.csv", colClasses = c("integer","character","integer"))
+summary(df_data)
+
+```
+Create a single column to represent date&time
+
+```{r}
+
+df_data <- mutate(df_data, datetime = 
+           as.POSIXct(
+               paste(date, str_pad(interval, 4, pad='0')), 
+               format="%Y-%m-%d %H%M" 
+                   )
+       )  
+
+```
+
+
+# What is mean total number of steps taken per day?
+
+
+```{r}
+
+df_summary <- df_data %>% 
+    group_by(date) %>% 
+    summarise(daily_steps = sum(steps,na.rm=TRUE))
+
+summary(df_summary)
+
+g <- ggplot(df_summary, aes(daily_steps)) + 
+    geom_histogram(bins = 20) +
+    labs(title="Histogram of Daily Steps")
+
+print(g)
+
+```
+
+```{r}
+
+mean_steps_per_day <- mean(df_summary$daily_steps)
+median_steps_per_day <- median(df_summary$daily_steps)
+
+```
+
+**Mean steps per day = `r mean_steps_per_day`.**
+
+**Median steps per day = `r median_steps_per_day`.**
+
+
+# What is the average daily activity pattern?
+
+```{r}
+
+df_data$time <- format(df_data$datetime, format = "%H:%M")
+df_data$time <- as.POSIXct(df_data$time, format = "%H:%M")
+
+df_intervalsummary <- df_data %>% 
+    group_by(time) %>% 
+    summarise(mean_steps_in_interval = mean(steps, na.rm=TRUE))
+
+summary(df_intervalsummary)
+
+g <- ggplot(df_intervalsummary, aes(time, mean_steps_in_interval)) +
+    geom_line() +
+    scale_x_datetime(date_labels = "%H:%M")
+
+print(g)
+
+```
+
+```{r}
+
+df_temp <- df_intervalsummary[which.max(df_intervalsummary$mean_steps_in_interval),]
+
+interval <- format(df_temp[[1]], "%H:%M")
+
+```
+
+**The 5-minute interval containing the maximum number of steps is `r interval`.  **  
+
+**This interval contains (on average) `r df_temp[[2]]` steps.  ** 
+
+
+# Imputing missing values
+
+**The total number of missing entries is `r sum(is.na(df_data$steps))`.** 
+
+I will now impute the missing values, based on the following strategy:  
+- For any missing entry of 'steps', set it to the mean value for that 5-min
+interval, when averaged across the entire (original) dataset. 
+
+```{r}
+
+df_data_imputed <- data.frame(df_data)
+
+
+
+```
+
+
+# Are there differences in activity patterns between weekdays and weekends?
